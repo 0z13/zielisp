@@ -1,0 +1,11 @@
+[package]
+name = "zielispy"
+version = "0.1.0"
+authors = ["Joe <zielinski@fastmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nom = "6.1.2"
+rustyline = "8.2.0"
