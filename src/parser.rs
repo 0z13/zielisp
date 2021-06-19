@@ -12,7 +12,7 @@ pub enum SExpr {
     SList(Box<Vec<SExpr>>)
 }
 
-static OP_LIST: [char; 3] = ['+', '-', '*'];
+static OP_LIST: [char; 5] = ['+', '-', '*', '>', '<'];
 impl SExpr {
     fn new_sym(s: &str) -> Self {
         SExpr::SSym(s.to_string())
@@ -81,14 +81,42 @@ pub fn parse_sexpr(input: &str ) -> IResult<&str, SExpr> {
 
 
 // gotta adjust parser.... :(
-
+// (let (x, y) ())
 // Parses slists
 fn parse_helper(inp: Box<Vec<SExpr>>) -> ExprE {
    let mut v = inp.into_iter();
    let curr = v.next().unwrap();
    match curr {
+       // Here we parse functions and primitive operators
         SExpr::SSym(s ) => {
             match s.as_str() {
+                ">"  => {
+                    let a = parse(v.next().unwrap());
+                    let b = parse(v.next().unwrap());
+
+                    if v.next().is_some() {
+                        panic!("Invalid number of arguments")
+                    }
+                    ExprE::LT(Box::new(a), Box::new(b))
+                }
+                "<"  => {
+                    let a = parse(v.next().unwrap());
+                    let b = parse(v.next().unwrap());
+
+                    if v.next().is_some() {
+                        panic!("Invalid number of arguments")
+                    }
+                    ExprE::GT(Box::new(a), Box::new(b))
+                }
+                "Eq"  => {
+                    let a = parse(v.next().unwrap());
+                    let b = parse(v.next().unwrap());
+                    println!("a: {:?} b: {:?}", a, b);
+                    if v.next().is_some() {
+                        panic!("Invalid number of arguments")
+                    }
+                    ExprE::GT(Box::new(a), Box::new(b))
+                }
                 "if"  => {
                     let cond = parse(v.next().unwrap());
                     let t = parse(v.next().unwrap());
@@ -133,10 +161,7 @@ fn parse_helper(inp: Box<Vec<SExpr>>) -> ExprE {
             }
         },
         _ => ExprE::Prim(-99999.0)
-
    }
-
-
 }
 
 //let (_, xexpr) = parse_sexpr(inp).unwrap(); 
@@ -147,7 +172,7 @@ pub fn parse(inp: SExpr) -> ExprE {
             match s.as_str() {
                 "true" => ExprE::TrueC,
                 "false" => ExprE::FalseC,
-                _       => ExprE::Prim(-9999.0)
+                _       => ExprE::Id(s)
             }
         } 
         SExpr::SNum(x)   => ExprE::Prim(x),

@@ -1,11 +1,13 @@
 mod expressions;
 mod parser;
 use expressions::Val;
+use expressions::Env;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use parser::SExpr;
 use parser::testing;
-
+use std::collections::HashMap;
+use std::iter::FromIterator;
 use expressions::Expr; 
 use expressions::ExprE;
 
@@ -19,9 +21,17 @@ use expressions::ExprE;
 
 fn main() {
     let ex1  = ExprE::IfC(Box::new(ExprE::TrueC), Box::new(ExprE::Prim(2.0)), Box::new(ExprE::Prim(3.0)));
-    println!("{}", eval(&desugar(&ex1)));
-    parser::testing();
-    run_repl();
+    //  f1 = fdC("double", "x", plusC(idC("x"), idC("x")))
+    // 
+    let ex2 = ExprE::Plus(Box::new(ExprE::Id("x".to_string())), Box::new(ExprE::Id("x".to_string())));
+    let ex3 = ExprE::FdC("x".to_string(), Box::new(ex2));
+    let tst = ExprE::AppC(Box::new(ex3), Box::new(ExprE::Prim(6.0)));
+
+    let mut env:Env = HashMap::new();
+    println!("{}", eval(&desugar(&tst), &env));
+    println!("{}", 2.0 == 2.0);
+    //parser::testing();
+    //run_repl();
     
 }
 
@@ -39,7 +49,8 @@ fn run_repl() {
                 let (_, x) = parser::parse_sexpr(&line).unwrap();
                 let parsed = parser::parse(x);
                 let desugared = desugar(&parsed);
-                let res = eval(&desugared);
+                let mut env:Env = HashMap::new();
+                let res = eval(&desugared, &env);
                 println!("zielispy: {}", res);
             },
             Err(ReadlineError::Interrupted) => {
@@ -60,51 +71,109 @@ fn run_repl() {
 }
 
 
-fn eval(e:&Expr) -> Val {
+fn eval(e:&Expr, mut env:&Env) -> Val {
     let res = match e {
         Expr::Prim(x) => Val::NumV(*x),
+        Expr::AppC(fun, arg) => {
+            let clos = eval(fun, env);
+            let arg = eval(arg, env);
+            match clos {
+                Val::ClosV(s, local_env) =>  {
+                    if let Expr::FdC(arg_name, body) = s {
+                        let mut env_copy = local_env.clone();
+                        let _ = env_copy.insert(arg_name, arg );
+                        eval(&body, &env_copy)
+                    } else {
+                        panic!("closures are hard")
+                    }
+                }
+                _ => panic!("closure are hard 2")
+            }
+        },
+        Expr::FdC(arg, body) => Val::ClosV(e.clone(), env.clone()), // gotta clone em' all
+        Expr::Id(s) => {
+            let v = env.get(s).unwrap();
+            v.clone()
+        } 
         Expr::Plus(x,y) => {
-            let rh = eval(x);
-            let lh = eval(y);
+            let rh = eval(x, env);
+            let lh = eval(y, env);
             Val::NumV(Val::unpack_val(&rh) + Val::unpack_val(&lh))
         }, 
         Expr::Minus(x,y) => {
-            let rh = eval(x);
-            let lh = eval(y);
+            let rh = eval(x, env);
+            let lh = eval(y, env);
             Val::NumV(Val::unpack_val(&rh) - Val::unpack_val(&lh))
         },                                        
         Expr::Mult(x,y) => {
-            let rh = eval(x);
-            let lh = eval(y);
+            let rh = eval(x, env);
+            let lh = eval(y, env);
             Val::NumV(Val::unpack_val(&rh) - Val::unpack_val(&lh))
         },
         Expr::IfC(cond,tVal,fVal) => {
-            if let Val::BoolV(b) = eval(cond) {
+            if let Val::BoolV(b) = eval(cond, env) {
                 if b { 
-                    return eval(tVal) 
+                    return eval(tVal, env) 
                 } else {
-                    return eval(fVal)
+                    return eval(fVal, env)
                 }
             } else {
-                panic!("fkk")
+                panic!("Weird ifC")
             }
         },
         Expr::FalseC => Val::BoolV(false),
-        Expr::TrueC  => Val::BoolV(true)
+        Expr::TrueC  => Val::BoolV(true),
+        Expr::GT(x, y) => {
+            let rh = eval(x, env);
+            let lh = eval(y, env);
+            if Val::unpack_val(&rh) < Val::unpack_val(&lh) {
+                Val::BoolV(true)
+            } else {
+                Val::BoolV(false)
+            }
+        },
+        Expr::LT(x, y) => {
+            let rh = eval(x, env);
+            let lh = eval(y, env);
+            println!("{}{}", &rh, &lh);
+            if Val::unpack_val(&rh) > Val::unpack_val(&lh) {
+                Val::BoolV(true)
+            } else {
+                Val::BoolV(false)
+            }
+        },
+        // Dur ikke, hvooooooorfoorrrrrr
+        // Equality ved ikke stoerre end og mindre end?
+        Expr::EQ(x, y) => {
+            let rh = Val::unpack_val(&eval(x, env));
+            let lh = Val::unpack_val(&eval(y, env));
+            println!("{}{}", &rh, &lh);
+            if rh == lh { 
+                Val::BoolV(true)
+            } else {
+                Val::BoolV(false)
+            }
+        }
    };
     res
 }
 
 fn desugar(e:&ExprE) -> Expr {
     let res:Expr = match e {
-        ExprE::Prim(x) => Expr::Prim(*x),
-        ExprE::Plus(x, y)   => Expr::Plus(Box::new(desugar(x)), Box::new(desugar(y))),
+        ExprE::Prim(x)                        => Expr::Prim(*x),
+        ExprE::Id(x)                        =>        Expr::Id(x.clone()),
+        ExprE::Plus(x, y)    => Expr::Plus(Box::new(desugar(x)), Box::new(desugar(y))),
         ExprE::Minus(x, y)  => Expr::Mult(Box::new(desugar(x)), Box::new(desugar(y))),
         ExprE::Mult(x, y)   => Expr::Minus(Box::new(desugar(x)), Box::new(desugar(y))),
         ExprE::UMinus(x )              => Expr::Mult(Box::new(Expr::Prim(-1.0)), Box::new(desugar(x))), // parser don't support yet
         ExprE::IfC(x,y,z)  => Expr::IfC(Box::new(desugar(x)),Box::new(desugar(y)), Box::new(desugar(z))),
         ExprE::TrueC              => Expr::TrueC,
-        ExprE::FalseC             => Expr::FalseC
+        ExprE::FalseC             => Expr::FalseC,
+        ExprE::LT(x, y)   => Expr::LT(Box::new(desugar(x)), Box::new(desugar(y))),
+        ExprE::EQ(x, y)   => Expr::EQ(Box::new(desugar(x)), Box::new(desugar(y))),
+        ExprE::GT(x, y)   => Expr::GT(Box::new(desugar(x)), Box::new(desugar(y))),
+        ExprE::AppC(x, y)     =>       Expr::AppC(Box::new(desugar(x)), Box::new(desugar(y))),
+        ExprE::FdC(x,y)          =>       Expr::FdC(x.clone(), Box::new(desugar(y))),
     };
     res
 }
