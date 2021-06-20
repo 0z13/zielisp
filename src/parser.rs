@@ -1,7 +1,4 @@
-
-use std::convert::TryInto;
-
-use nom::{AsChar, Err as NomErr, IResult, InputTakeAtPosition, branch::alt, bytes::complete::{tag, tag_no_case, take, take_while}, character::{complete::{alpha1, alphanumeric1, one_of, space0,space1}, is_alphabetic, streaming::alpha0}, combinator::opt, many1, multi::{separated_list1, many0, many1, }, named, sequence::{delimited, preceded, separated_pair, terminated, tuple}};
+use nom::{IResult, branch::alt, bytes::complete::{tag, take_while}, character::{complete::{one_of, space1}, is_alphabetic, streaming::alpha0}, combinator::opt, many1, multi::{separated_list1, many0, many1, }, named, sequence::{delimited, preceded, separated_pair, terminated, tuple}};
 
 use crate::expressions::ExprE;
 
@@ -12,7 +9,7 @@ pub enum SExpr {
     SList(Box<Vec<SExpr>>)
 }
 
-static OP_LIST: [char; 5] = ['+', '-', '*', '>', '<'];
+static OP_LIST: [char; 6] = ['+', '-', '*', '>', '<', '|'];
 impl SExpr {
     fn new_sym(s: &str) -> Self {
         SExpr::SSym(s.to_string())
@@ -28,19 +25,7 @@ impl SExpr {
     }
 }
 
-// Combinators
-// (+ 2 22)
-
-// TODO list
-// 
-// Test cases 
-// SExpr into AST 
-// conditionals
-// functions 
-
-
-
-// Obviously not complete for all types of floats
+// Obviously not complete for all types of floats (yet)
 fn parse_num(input: &str) -> IResult<&str, SExpr> {
     let (cont, res) = nom::combinator::recognize(
       many1(
@@ -188,6 +173,7 @@ pub fn parse(inp: SExpr) -> ExprE {
 // let's try to get a primitive repl going now -- 1 expr
 pub fn testing() {
     println!("THINGS THAT DEFINITELY SHOULDN'T FAIL:");
+    println!("{:?}", parse_sexpr("(|x| (|y| (x + y)))").unwrap());
     let (_, s)= parse_sexpr("(if true 5 3)").unwrap();
     println!("{:?}", s);
     println!("{:?}", parse(s))

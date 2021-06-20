@@ -4,10 +4,7 @@ use expressions::Val;
 use expressions::Env;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use parser::SExpr;
-use parser::testing;
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use expressions::Expr; 
 use expressions::ExprE;
 
@@ -20,18 +17,17 @@ use expressions::ExprE;
 
 
 fn main() {
-    let ex1  = ExprE::IfC(Box::new(ExprE::TrueC), Box::new(ExprE::Prim(2.0)), Box::new(ExprE::Prim(3.0)));
+    let _ex1  = ExprE::IfC(Box::new(ExprE::TrueC), Box::new(ExprE::Prim(2.0)), Box::new(ExprE::Prim(3.0)));
     //  f1 = fdC("double", "x", plusC(idC("x"), idC("x")))
     // 
     let ex2 = ExprE::Plus(Box::new(ExprE::Id("x".to_string())), Box::new(ExprE::Id("x".to_string())));
     let ex3 = ExprE::FdC("x".to_string(), Box::new(ex2));
     let tst = ExprE::AppC(Box::new(ex3), Box::new(ExprE::Prim(6.0)));
 
-    let mut env:Env = HashMap::new();
+    let env:Env = HashMap::new();
     println!("{}", eval(&desugar(&tst), &env));
-    println!("{}", 2.0 == 2.0);
-    //parser::testing();
-    //run_repl();
+    parser::testing();
+    run_repl();
     
 }
 
@@ -49,9 +45,9 @@ fn run_repl() {
                 let (_, x) = parser::parse_sexpr(&line).unwrap();
                 let parsed = parser::parse(x);
                 let desugared = desugar(&parsed);
-                let mut env:Env = HashMap::new();
+                let env:Env = HashMap::new();
                 let res = eval(&desugared, &env);
-                println!("zielispy: {}", res);
+                println!("zielisp: {}", res);
             },
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
@@ -71,7 +67,7 @@ fn run_repl() {
 }
 
 
-fn eval(e:&Expr, mut env:&Env) -> Val {
+fn eval(e:&Expr, env:&Env) -> Val {
     let res = match e {
         Expr::Prim(x) => Val::NumV(*x),
         Expr::AppC(fun, arg) => {
@@ -90,7 +86,7 @@ fn eval(e:&Expr, mut env:&Env) -> Val {
                 _ => panic!("closure are hard 2")
             }
         },
-        Expr::FdC(arg, body) => Val::ClosV(e.clone(), env.clone()), // gotta clone em' all
+        Expr::FdC(_, _) => Val::ClosV(e.clone(), env.clone()), // gotta clone em' all
         Expr::Id(s) => {
             let v = env.get(s).unwrap();
             v.clone()
@@ -110,12 +106,12 @@ fn eval(e:&Expr, mut env:&Env) -> Val {
             let lh = eval(y, env);
             Val::NumV(Val::unpack_val(&rh) - Val::unpack_val(&lh))
         },
-        Expr::IfC(cond,tVal,fVal) => {
+        Expr::IfC(cond,t_val,f_val) => {
             if let Val::BoolV(b) = eval(cond, env) {
                 if b { 
-                    return eval(tVal, env) 
+                    return eval(t_val, env) 
                 } else {
-                    return eval(fVal, env)
+                    return eval(f_val, env)
                 }
             } else {
                 panic!("Weird ifC")
