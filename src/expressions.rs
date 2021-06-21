@@ -5,6 +5,7 @@ use std::{collections::HashMap, format};
 pub enum ExprE {
     Prim(f64),
     Id(String),
+    LetBinding(String, Box<ExprE>),
     AppC(Box<ExprE>, Box<ExprE>),
     FdC(String, Box<ExprE>), // Argument, body
     Plus(Box<ExprE>, Box<ExprE>),

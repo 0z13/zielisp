@@ -63,6 +63,11 @@ pub fn parse_sexpr(input: &str ) -> IResult<&str, SExpr> {
         parse_num, parse_bare_string, parse_slist
     ))(input)
 }
+// SHould this return like a list of args?
+fn parse_args_helper(input: &str) -> IResult<&str, &str> {
+    println!("parsing {}", input);
+    delimited(tag("|"), nom::character::complete::alpha1, tag("|"))(input)
+}
 
 
 // gotta adjust parser.... :(
@@ -71,6 +76,7 @@ pub fn parse_sexpr(input: &str ) -> IResult<&str, SExpr> {
 fn parse_helper(inp: Box<Vec<SExpr>>) -> ExprE {
    let mut v = inp.into_iter();
    let curr = v.next().unwrap();
+   
    match curr {
        // Here we parse functions and primitive operators
         SExpr::SSym(s ) => {
@@ -109,8 +115,6 @@ fn parse_helper(inp: Box<Vec<SExpr>>) -> ExprE {
                     ExprE::IfC(Box::new(cond), Box::new(t), Box::new(f))
                 }
 
-
-
                 "+"   => {
                     let a = parse(v.next().unwrap());
                     let b = parse(v.next().unwrap());
@@ -142,13 +146,63 @@ fn parse_helper(inp: Box<Vec<SExpr>>) -> ExprE {
 
                     ExprE::Minus(Box::new(a),Box::new(b))
                 }
-                _   => ExprE::Prim(-99999.0)
+                "let" => {
+                    let mut name = String::from("");
+                    if let SExpr::SSym(s) = v.next().unwrap() {
+                        name = s
+
+                    }
+                    let expr = parse(v.next().unwrap());
+                    ExprE::LetBinding(name, Box::new(expr))
+                }
+                x if is_arg(x)  => { // closure
+                    let arg_name = parse_arg(x).to_string();
+                    let body = parse(v.next().unwrap());
+                    println!("we never get here? {:?}", body);
+                    let clos = ExprE::FdC(arg_name, Box::new(body));
+                    if v.next().is_none(){
+                        clos
+                    } else{
+                        let arg = parse(v.next().unwrap());
+                        ExprE::AppC(Box::new(clos), Box::new(arg))
+                    }
+                }
+                
+                _ => ExprE::Prim(99999.0)
             }
         },
-        _ => ExprE::Prim(-99999.0)
+        SExpr::SList(xs) => {
+            let first = xs.first().unwrap();
+        } 
    }
 }
 
+
+fn parse_arg(x: &str ) -> &str {
+    let (s, a)  = parse_args_helper(x).unwrap();
+    a
+}
+
+fn is_arg(x: &str ) -> bool {
+    let (s, a)  = parse_args_helper(x).unwrap();
+    if s == "" {
+        true 
+    } else {
+        false
+    }
+}
+
+
+// TODO
+// 1. Let binding (let add1 x (x + 1)) 
+//  
+                    
+//   AppC(Box<ExprE>, Box<ExprE>),
+//   FdC(String, Box<ExprE>), // Argument, body
+
+
+    // ((let add1 (|x| (x+1))
+    //     (add1 5))
 //let (_, xexpr) = parse_sexpr(inp).unwrap(); 
 pub fn parse(inp: SExpr) -> ExprE {
     // safe to unwrap at this point
@@ -173,8 +227,8 @@ pub fn parse(inp: SExpr) -> ExprE {
 // let's try to get a primitive repl going now -- 1 expr
 pub fn testing() {
     println!("THINGS THAT DEFINITELY SHOULDN'T FAIL:");
-    println!("{:?}", parse_sexpr("(|x| (|y| (x + y)))").unwrap());
-    let (_, s)= parse_sexpr("(if true 5 3)").unwrap();
+    //let (_, s)= parse_sexpr("(let plus (|x| (x + 1)))").unwrap();
+    let (_, s)= parse_sexpr("((|x| (+ x 1)) 10)").unwrap();
     println!("{:?}", s);
     println!("{:?}", parse(s))
 

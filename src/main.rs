@@ -19,7 +19,9 @@ use expressions::ExprE;
 fn main() {
     let _ex1  = ExprE::IfC(Box::new(ExprE::TrueC), Box::new(ExprE::Prim(2.0)), Box::new(ExprE::Prim(3.0)));
     //  f1 = fdC("double", "x", plusC(idC("x"), idC("x")))
-    // 
+    // ((let add1 (|x| (x+1))
+    //     (add1 5))
+        
     let ex2 = ExprE::Plus(Box::new(ExprE::Id("x".to_string())), Box::new(ExprE::Id("x".to_string())));
     let ex3 = ExprE::FdC("x".to_string(), Box::new(ex2));
     let tst = ExprE::AppC(Box::new(ex3), Box::new(ExprE::Prim(6.0)));
@@ -27,7 +29,7 @@ fn main() {
     let env:Env = HashMap::new();
     println!("{}", eval(&desugar(&tst), &env));
     parser::testing();
-    run_repl();
+    //run_repl();
     
 }
 
@@ -91,6 +93,7 @@ fn eval(e:&Expr, env:&Env) -> Val {
             let v = env.get(s).unwrap();
             v.clone()
         } 
+        //Expr::LetBinding(s, e) => Val::NumV(900.0), // get the let binding working l8er
         Expr::Plus(x,y) => {
             let rh = eval(x, env);
             let lh = eval(y, env);
@@ -170,6 +173,7 @@ fn desugar(e:&ExprE) -> Expr {
         ExprE::GT(x, y)   => Expr::GT(Box::new(desugar(x)), Box::new(desugar(y))),
         ExprE::AppC(x, y)     =>       Expr::AppC(Box::new(desugar(x)), Box::new(desugar(y))),
         ExprE::FdC(x,y)          =>       Expr::FdC(x.clone(), Box::new(desugar(y))),
+        ExprE::LetBinding(name, body) => Expr::Prim(10.0)
     };
     res
 }
