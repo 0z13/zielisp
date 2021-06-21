@@ -25,11 +25,13 @@ fn main() {
     let ex2 = ExprE::Plus(Box::new(ExprE::Id("x".to_string())), Box::new(ExprE::Id("x".to_string())));
     let ex3 = ExprE::FdC("x".to_string(), Box::new(ex2));
     let tst = ExprE::AppC(Box::new(ex3), Box::new(ExprE::Prim(6.0)));
-
+    let (_, s)= parser::parse_sexpr("((|x| (+ x 1)) (+ 10 10))").unwrap();
+    println!("{:?}", s);
+    let me_val = parser::parse(s);
     let env:Env = HashMap::new();
-    println!("{}", eval(&desugar(&tst), &env));
+    println!("{}", eval(&desugar(&me_val), &env));
     parser::testing();
-    //run_repl();
+    run_repl();
     
 }
 

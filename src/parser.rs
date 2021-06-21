@@ -2,7 +2,7 @@ use nom::{IResult, branch::alt, bytes::complete::{tag, take_while}, character::{
 
 use crate::expressions::ExprE;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SExpr {
     SSym(String),
     SNum(f64),
@@ -171,9 +171,32 @@ fn parse_helper(inp: Box<Vec<SExpr>>) -> ExprE {
                 _ => ExprE::Prim(99999.0)
             }
         },
+
+
+
         SExpr::SList(xs) => {
-            let first = xs.first().unwrap();
+
+
+            let mut lambda_slist= xs.iter();
+            let arg_name = lambda_slist.next().unwrap();
+            let body = lambda_slist.next().unwrap();
+            let arg_val =  v.next().unwrap();
+
+            match &arg_name {
+                &SExpr::SSym(w) => {
+                    if is_arg(w.as_str()) {
+                        let arg_name_parsed = parse_arg(w).to_string();
+                        let def = ExprE::FdC(arg_name_parsed.clone(), Box::new(parse(body.clone())));
+                        return ExprE::AppC(Box::new(def), Box::new(parse(arg_val)))
+                        // remember we need the arg aswell1
+                    } else  {
+                        panic!("wtf")
+                    }
+                }
+                _ => panic!("wtfjw")
+            }
         } 
+        _ => panic!("far out")
    }
 }
 
@@ -228,9 +251,9 @@ pub fn parse(inp: SExpr) -> ExprE {
 pub fn testing() {
     println!("THINGS THAT DEFINITELY SHOULDN'T FAIL:");
     //let (_, s)= parse_sexpr("(let plus (|x| (x + 1)))").unwrap();
-    let (_, s)= parse_sexpr("((|x| (+ x 1)) 10)").unwrap();
+    let (_, s)= parse_sexpr("((|x| (+ x 1)) (+ 10 10))").unwrap();
     println!("{:?}", s);
-    println!("{:?}", parse(s))
+    println!(" hfahfahhf {:?}", parse(s))
 
 }
 
