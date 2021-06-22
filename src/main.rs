@@ -25,13 +25,14 @@ fn main() {
     let ex2 = ExprE::Plus(Box::new(ExprE::Id("x".to_string())), Box::new(ExprE::Id("x".to_string())));
     let ex3 = ExprE::FdC("x".to_string(), Box::new(ex2));
     let tst = ExprE::AppC(Box::new(ex3), Box::new(ExprE::Prim(6.0)));
-    let (_, s)= parser::parse_sexpr("((|x| (+ x 1)) (+ 10 10))").unwrap();
-    println!("{:?}", s);
+    let (_, s)= parser::parse_sexpr("(let plus (|x| (+ x 1)) 5))").unwrap();
+    println!("yep {:?}", s);
     let me_val = parser::parse(s);
+    println!("ep {:?}", me_val);
     let env:Env = HashMap::new();
-    println!("{}", eval(&desugar(&me_val), &env));
+    println!("damn confused: {:?}", eval(&desugar(&me_val), &env));
     parser::testing();
-    run_repl();
+    //run_repl();
     
 }
 
@@ -175,7 +176,13 @@ fn desugar(e:&ExprE) -> Expr {
         ExprE::GT(x, y)   => Expr::GT(Box::new(desugar(x)), Box::new(desugar(y))),
         ExprE::AppC(x, y)     =>       Expr::AppC(Box::new(desugar(x)), Box::new(desugar(y))),
         ExprE::FdC(x,y)          =>       Expr::FdC(x.clone(), Box::new(desugar(y))),
-        ExprE::LetBinding(name, body) => Expr::Prim(10.0)
+        ExprE::LetBinding(_name, body) => {
+            let information = desugar(body);
+            match information {
+                Expr::FdC(s, _expr) => Expr::FdC(s.clone(), Box::new(desugar(body))),
+                _ => panic!("kurcha")
+            }
+        }
     };
     res
 }
